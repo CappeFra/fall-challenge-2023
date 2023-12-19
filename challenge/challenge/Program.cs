@@ -5,6 +5,7 @@ using System.Text;
 using System.Collections;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using System.Diagnostics;
 
 /**
  * Score points by scanning valuable fish faster than your opponent.
@@ -22,6 +23,7 @@ class Player
             int color = int.Parse(inputs[1]);
             int type = int.Parse(inputs[2]);
             Fauna.Creatures.Add(new Creature(creatureId, color, type));
+            Fauna.UnscannedCreatures.Add(new Creature(creatureId, color, type));
         }
 
         User me = new User();
@@ -35,13 +37,29 @@ class Player
             for (int i = 0; i < myScanCount; i++)
             {
                 int creatureId = int.Parse(Console.ReadLine());
-                me.Bestiary.Creatures.Add(Fauna.Creatures[creatureId] as Creature);
+                if (!me.Bestiary.Creatures.Any(c => c.Id == creatureId))
+                {
+                    me.Bestiary.Creatures.Add(Fauna.Creatures.Where(c => c.Id == creatureId).Single());
+                }
+                if (Fauna.UnscannedCreatures.Any(c => c.Id == creatureId))
+                {
+                    Fauna.UnscannedCreatures.Remove(Fauna.UnscannedCreatures.Where(c => c.Id == creatureId).Single());
+                }
             }
+
+            foreach (var creature in Fauna.UnscannedCreatures)
+            {
+                Console.Error.WriteLine($"{creature.Id}: {creature.X} {creature.Y} {creature.VelX} {creature.VelY} {creature.GetNextPos()}");
+            }
+
             int foeScanCount = int.Parse(Console.ReadLine());
             for (int i = 0; i < foeScanCount; i++)
             {
                 int creatureId = int.Parse(Console.ReadLine());
-                foe.Bestiary.Creatures.Add(Fauna.Creatures[creatureId] as Creature);
+                if (!foe.Bestiary.Creatures.Any(c => c.Id == creatureId))
+                {
+                    foe.Bestiary.Creatures.Add(Fauna.Creatures.Where(c => c.Id == creatureId).Single());
+                }
             }
             int myDroneCount = int.Parse(Console.ReadLine());
             for (int i = 0; i < myDroneCount; i++)
@@ -97,6 +115,8 @@ class Player
                 int creatureY = int.Parse(inputs[2]);
                 int creatureVx = int.Parse(inputs[3]);
                 int creatureVy = int.Parse(inputs[4]);
+                Fauna.Creatures.Where(c => c.Id == creatureId).Single().SetPosAndVelocity(creatureX, creatureY, creatureVx, creatureVy);
+                Fauna.UnscannedCreatures.Where(c => c.Id == creatureId).SingleOrDefault()?.SetPosAndVelocity(creatureX, creatureY, creatureVx, creatureVy);
             }
             int radarBlipCount = int.Parse(Console.ReadLine());
             for (int i = 0; i < radarBlipCount; i++)
@@ -106,7 +126,8 @@ class Player
                 int creatureId = int.Parse(inputs[1]);
                 string radar = inputs[2];
             }
-            foreach(var decision in Decision.Execute(me))
+
+            foreach (var decision in Decision.Execute(me))
             {
                 Console.WriteLine(decision);
             }
@@ -121,9 +142,8 @@ public static class Decision
         var decisions = new List<string>();
         foreach (var drone in user.Drones)
         {
-
             var target = drone.GetNearestCreature();
-            var command = MoveToTarget(target);
+            var command = MoveToTarget(target.GetNextPos());
             command += $" {DroneBatteryDecision(drone)}";
             decisions.Add(command);
         }
@@ -143,7 +163,8 @@ public static class Decision
 
     private static string DroneBatteryDecision(Drone drone)
     {
-        return drone.Battery == 5 || drone.Battery % 5 == 4 ? "light 1" : "";
+        Console.Error.WriteLine("Battery is " + drone.Battery);
+        return drone.Battery == 5 || drone.Battery == 30 || drone.Battery % 5 == 4 ? "1" : "0";
     }
 }
 
@@ -171,13 +192,14 @@ public class Drone : Point
 
     public Creature GetNearestCreature()
     {
-        return Fauna.Creatures.OrderBy(c => SquareDistanceTo(c)).First();
+        return Fauna.UnscannedCreatures.OrderBy(c => SquareDistanceTo(c)).First();
     }
 }
 
 public static class Fauna
 {
     public static List<Creature> Creatures = new List<Creature>();
+    public static List<Creature> UnscannedCreatures = new List<Creature>();
 }
 
 public class Bestiary
