@@ -164,7 +164,12 @@ public static class Decision
     private static string DroneBatteryDecision(Drone drone)
     {
         Console.Error.WriteLine("Battery is " + drone.Battery);
-        return drone.Battery == 5 || drone.Battery == 30 || drone.Battery % 5 == 4 ? "1" : "0";
+        return drone.Battery > 25
+            || drone.Battery == 23
+            || drone.Battery == 17
+            || drone.Battery == 11
+            || drone.Battery == 5
+            ? "1" : "0";
     }
 }
 
